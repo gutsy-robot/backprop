@@ -24,7 +24,7 @@ import time
 class VanillaBackProp(object):
 	def __init__(self):
 		print "initialising class variables.."
-		self.file_path = '/home/anish/deep_learning/assignment'
+		self.file_path = '/Users/siddharthagrawal/Desktop/backprop'
 		self.train_images = None 
 		self.test_images = None 
 		self.train_labels = None
@@ -52,7 +52,7 @@ class VanillaBackProp(object):
 		self.epsilon = 0.02
 
 		#number of passes while training
-		self.num_passes = 1
+		self.num_passes = 4
 		self.predicted_outputs = None
 
 		print "class variables initialised.."
@@ -65,14 +65,10 @@ class VanillaBackProp(object):
 		print "reading data.."
 		training_images, training_labels = mndata.load_training()
 		testing_images, testing_labels = mndata.load_testing()
-		train_images = np.array(training_images)
-		train_labels = np.array(training_labels)
-		test_images = np.array(testing_images)
-		test_labels = np.array(testing_labels)
-
-		#TODO: Filter test_data such that they have the labels from the output classes only and create the relevant output vector.
-
-
+		train_images = np.array(training_images, dtype=np.float128)
+		train_labels = np.array(training_labels, dtype=np.float128)
+		test_images = np.array(testing_images, dtype=np.float128)
+		test_labels = np.array(testing_labels, dtype=np.float128)
 
 
 		'''
@@ -89,39 +85,41 @@ class VanillaBackProp(object):
 		plt.imshow(pixels, cmap='gray')
 		plt.show()
 		'''
+		
 
 		#filter out training variables 
 		self.train_labels = np.array(filter(lambda x: x in self.class_var, train_labels))
 		self.test_labels =  np.array(filter(lambda x: x in self.class_var, test_labels))
 		train_indices = [index for index,value in enumerate(train_labels) if value in self.class_var]
-		self.train_images = train_images[train_indices,:]
+		train_images_temp = train_images[train_indices,:]
+		self.train_images = train_images_temp/256
+		#print "training images are.."
+		#print self.train_images[2]
 		test_indices = [index for index,value in enumerate(test_labels) if value in self.class_var]
-		self.test_images = test_images[test_indices,:]
+		test_images_temp = test_images[test_indices,:]
+		self.test_images = test_images_temp/256
+		#print "printing test images.."
+		#print self.test_images[1]
 		self.num_features = self.train_images.shape[1]	
 		self.vectorise_output()
 
 
 	def sigmoidDerivative(self,z):
-		if z>0:
-			return 1. / ((1. + np.exp(-z))*(1. + np.exp(-z)))
-		elif z<=0:
-
-			return np.exp(-z)/((1+np.exp(-z))**2)
-		else:
-			raise ValueError
+		return np.exp(-z)/((1+np.exp(-z))**2)
+	
 
 	def initialise_weights(self):
-		self.w1 = 2*np.random.random((self.num_features, self.hidden_layer_dim)) - 1
-		self.w2 = 2*np.random.random((self.hidden_layer_dim, self.output_dim)) - 1
-		self.b1 = np.zeros((1, self.hidden_layer_dim))
-		self.b2 = np.zeros((1, self.output_dim))
+		self.w1 = 2*np.random.random((self.num_features, self.hidden_layer_dim)).astype(np.float128) - 1
+		self.w2 = 2*np.random.random((self.hidden_layer_dim, self.output_dim)).astype(np.float128) - 1
+		self.b1 = np.zeros((1, self.hidden_layer_dim), dtype=np.float128)
+		self.b2 = np.zeros((1, self.output_dim), dtype=np.float128)
 		print "weights and bias initialised.."
 
 	#implemented only for the sigmoid activation for now.
 
 	def forward_prop(self, l2=False, l1=False):
+		print "learning weights..."
 		for i in xrange(0,self.num_passes):
-			print "doing forward prop.."
 			'''
 			print "dimension of train_images"
 			print self.train_images.shape[0], self.train_images.shape[1]
@@ -135,11 +133,11 @@ class VanillaBackProp(object):
 			self.z3 = self.a2.dot(self.w2) + self.b2
 			self.a3 = 1/(1 + np.exp(-self.z3))
 			#print self.current_output[1]
-			print "forward prop done"
-			print "weights after forward prop are.."
-			print self.w1
-			print "weight 2 is..."
-			print self.w2
+			#print "forward prop done"
+			#print "weights after forward prop are.."
+			#print self.w1
+			#print "weight 2 is..."
+			#print self.w2
 
 			#backprop
 			'''
@@ -155,13 +153,23 @@ class VanillaBackProp(object):
 			print "dimension of a3 are"
 			print self.a3.shape[0], self.a3.shape[1]
 			'''
+			print "calculating dJdW2"
+			print "A2T is.."
+			print self.a2.T[2]
+			print "delta3 is.."
+			print delta3
 			dJdW2 = np.dot(self.a2.T, delta3)
+			print "dJdW2 is..."
+			print dJdW2
 
 			delta2 = np.dot(delta3, self.w2.T)*self.sigmoidDerivative(self.z2)
 			db1 = np.sum(delta2, axis=0)
-			print "delta2 calculated...."
-			print delta2
+			#print "delta2 calculated...."
+			#print delta2
 			#db2 = np.sum(delta3, axis=0, keepdims=True)
+			print "calculating dJdW1.."
+			print self.train_images.T[2]
+			print delta2 
 			dJdW1 = np.dot(self.train_images.T, delta2) 
 			print "dJdW1 is.."
 			print dJdW1
@@ -190,45 +198,43 @@ class VanillaBackProp(object):
 			'''
 			self.w2 += -self.epsilon * dJdW2
 			self.b2 += -self.epsilon * db2
-			print "model trained"
-			#self.b2 += -self.epsilon * db2
+		
 
 	def vectorise_output(self):
-     		self.train_label_vector = np.zeros((len(self.train_labels), 3))
-     		self.test_label_vector = np.zeros((len(self.test_labels), 3))
+     		self.train_label_vector = np.zeros((len(self.train_labels), 3), dtype=np.float128)
+     		self.test_label_vector = np.zeros((len(self.test_labels), 3), dtype=np.float128)
 
      		label1 = [index for index,value in enumerate(self.train_labels) if value in [1]]
      		label2 = [index for index,value in enumerate(self.train_labels) if value in [2]]
      		label3 = [index for index,value in enumerate(self.train_labels) if value in [3]]
      		for x in label1:
-				self.train_label_vector[x, :] = [1, 0, 0]
+				self.train_label_vector[x, :] = [1.0, 0.0, 0.0]
      		for y in label2:
-				self.train_label_vector[y, :] = [0, 1, 0]
+				self.train_label_vector[y, :] = [0.0, 1.0, 0.0]
      		
      		for z in label3:
-				self.train_label_vector[z, :] = [0, 0, 1]
+				self.train_label_vector[z, :] = [0.0, 0.0, 1.0]
 		label1_test = [index for index,value in enumerate(self.test_labels) if value in [1]]
      		label2_test = [index for index,value in enumerate(self.test_labels) if value in [2]]
      		label3_test = [index for index,value in enumerate(self.test_labels) if value in [3]]
      		for x in label1_test:
-				self.test_label_vector[x, :] = [1, 0, 0]
+				self.test_label_vector[x, :] = [1.0, 0.0, 0.0]
      		for y in label2_test:
-				self.test_label_vector[y, :] = [0, 1, 0]
+				self.test_label_vector[y, :] = [0.0, 1.0, 0.0]
      		
      		for z in label3_test:
-				self.test_label_vector[z, :] = [0, 0, 1]
+				self.test_label_vector[z, :] = [0.0, 0.0, 1.0]
      		
      		print "output vectors created for training..."
 
 	def predict(self):
 	        print "Predicting test data..."
-	        print self.w2
 	        z2 = self.test_images.dot(self.w1) + self.b1
 	        a2 =  1/(1 + np.exp(-z2))	
 	        z3 = self.a2.dot(self.w2) + self.b2
 	        a3 = 1/(1 + np.exp(-z3))
 	        self.predicted_outputs = a3
-	        print self.predicted_outputs[2]
+	        print self.predicted_outputs
 	        print "output prediction done.."
 
 	#function for calculating MSE Loss.
@@ -242,5 +248,5 @@ if __name__ == '__main__':
 	back_prop.read()
 	back_prop.initialise_weights()
 	back_prop.forward_prop(False, False)
-	#back_prop.predict()
+	back_prop.predict()
 	

@@ -16,6 +16,7 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 import time
+import os
 
 
 
@@ -24,7 +25,7 @@ import time
 class VanillaBackProp(object):
 	def __init__(self):
 		print "initialising class variables.."
-		self.file_path = '/Users/siddharthagrawal/Desktop/backprop'
+		self.file_path = fn = os.path.join(os.path.dirname(__file__), 'data')
 		self.train_images = None 
 		self.test_images = None 
 		self.train_labels = None
@@ -187,7 +188,7 @@ class VanillaBackProp(object):
 				#print "db1 is.."
 				#print db1
 				#print "calculating dJdW1.."
-				text_file = open("Output.txt", "w")
+				#text_file = open("Output.txt", "w")
 				
 				#print self.train_images.T[1]
 				#print delta2 
@@ -274,7 +275,7 @@ class VanillaBackProp(object):
 	        a3 = 1/(1 + np.exp(-z3))
 	        self.predicted_outputs = a3
 	        print self.predicted_outputs
-	        text_file2 = open("Output2.txt", "w")
+	        #text_file2 = open("Output2.txt", "w")
 	        '''
 	        for i in range(0,100):
 	        	text_file2.write("outputs are: %s" % str(self.predicted_outputs[i+800]))

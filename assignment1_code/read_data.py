@@ -275,10 +275,12 @@ class VanillaBackProp(object):
 	        self.predicted_outputs = a3
 	        print self.predicted_outputs
 	        text_file2 = open("Output2.txt", "w")
+	        '''
 	        for i in range(0,100):
 	        	text_file2.write("outputs are: %s" % str(self.predicted_outputs[i+800]))
 	        	
  		text_file2.close()
+ 		'''
 		print "output prediction done.."
 
 	#function for calculating MSE Loss.

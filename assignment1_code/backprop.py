@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
 '''
-script for reading data from eminist dataset
+script for doing backprop with different activation functions on mnist dataset.
 
 dependencies: pip install python-mnist
 
 Implementation of a single layered neural network.
 
 Authors: Siddharth Agrawal, Vikas Deep, Harsh Sahu
+
+learning rate required with cross-entropy almost one-tenth of that with MSE.
+Also, with relu learning rate required is very very small.
 
 '''
 
@@ -23,42 +26,45 @@ import os
 
 
 class VanillaBackProp(object):
-	def __init__(self):
+	def __init__(self, layers=2, h_dim=50, epoc=10, reg_lambda=0.001, learn_rate=0.0001, activation='sigmoid', cost_type='MSE', reg_type=None ):
 		print "initialising class variables.."
-		self.data_path = fn = os.path.join(os.path.dirname(__file__), 'data')
+		self.data_path = os.path.join(os.path.dirname(__file__), 'data')
 		self.train_images = None 
 		self.test_images = None 
 		self.train_labels = None
 		self.test_labels = None 
-		self.class_var = [1,2,3]										#we will classify into the nine-letter classes.
-		#random weight initialisation
-		self.weights = None
+		self.class_var = [1.0,2.0,3.0]										#we will classify into the nine-letter classes
 		self.num_features = None
-		self.hidden_layer_dim = 20	
-		self.num_hlayers = 1
-		self.output_dim = len(self.class_var)
+		self.hidden_layer_dim = h_dim
+		self.num_hlayers = layers
+		
 		self.num_train_example = None
 		self.num_test_example  = None
-		#represents the output of the current feed forward prop
+
+		self.class_var_codes = {'A':65, 'D':68, 'H':72, 'I':73, 'K':75, 'R':82, 'S':83, 'T':84, 'V':86}
+		#self.class_var = [5.0, 8.0, 2.0, 3.0, 15.0, 32.0, 33.0, 28.0, 12.0 ]
+		#self.class_output_map = {'A':1, 'D':2, 'H':3, 'I':4 'K':5, 'R':6, 'S':7, 'T':8, 'V':9}
+		self.output_dim = len(self.class_var)
 		self.train_label_vector = None
 		self.test_label_vector = None
-		self.z2 = None
-		self.z3 = None
-		self.a2 = None
-		self.a3 = None
-		self.b1 = None
-		self.b2 = None
+		self.A = None
+		self.Z = None
+		self.model_weights = None
+		self.model_bias = None
 
-		#regularisation parameter for L2
-		self.reg_lambda = 0.01
-
-		#specify learning rate
-		self.epsilon = 0.001
+		self.num_labels = len(self.class_var)
+		self.reg_lambda = reg_lambda
+		self.epsilon = learn_rate
 
 		#number of passes while training
-		self.num_passes = 50
+		self.num_passes = epoc
+		self.cost_type = cost_type
+		self.reg_type = reg_type
+		self.activation = activation
+
 		self.predicted_outputs = None
-		self.predicted_output_labels = None
+		self.predicted_labels = None
+		print "class variables initialised.."
 
 
 
@@ -70,22 +76,27 @@ class VanillaBackProp(object):
 
 		print "reading data.."
 		training_images, training_labels = mndata.load_training()
+		print "training ubyte files read..."
 		testing_images, testing_labels = mndata.load_testing()
+		print "data read successfully from ubyte files"
 		train_images = np.array(training_images, dtype=np.float128)
+		print "training images numpy array created..."
 		train_labels = np.array(training_labels, dtype=np.float128)
+		print "train_labels numpy array created..."
 		test_images = np.array(testing_images, dtype=np.float128)
+		print "test_images numpy array created..."
 		test_labels = np.array(testing_labels, dtype=np.float128)
+		print "test_labels numpy array created..."
 
-
-		
 		#just to visualise the training data.
-		'''
+		
 		print "conversion to numpy array done..."
 		print "images dimensions are.."
 		print train_images.shape, test_images.shape
 		print "label dimensions are.."
 		print train_labels.shape, test_labels.shape
 		
+		'''
 		first_image = training_images[0]
 		first_image = np.array(first_image, dtype='float')
 		pixels = first_image.reshape((28, 28))
@@ -96,6 +107,7 @@ class VanillaBackProp(object):
 
 		#filter out training variables 
 		self.train_labels = np.array(filter(lambda x: x in self.class_var, train_labels))
+		print "shape of train_labels is %s" % self.train_labels.shape
 		self.num_train_example = self.train_labels.shape[0]
 
 		self.test_labels =  np.array(filter(lambda x: x in self.class_var, test_labels))
@@ -108,12 +120,8 @@ class VanillaBackProp(object):
 		test_indices = [index for index,value in enumerate(test_labels) if value in self.class_var]
 		test_images_temp = test_images[test_indices,:]
 		self.test_images = test_images_temp/256.0
-		#print "dimension of test images..."
-		#print self.test_images.shape[0], self.test_images.shape[1]
-		#print "printing test images.."
-
-
 		self.num_features = self.train_images.shape[1]	
+		print "calling vectorise output now..."
 		self.vectorise_output()
 		print "number of features are %s" % str(self.num_features)
 		print "number of training examples are %s" % str(self.num_train_example)
@@ -121,168 +129,240 @@ class VanillaBackProp(object):
 		
 	def sigmoidDerivative(self,z):
 		return np.exp(-z)/((1+np.exp(-z))**2)
+
+	def reluDerivative(self,z):
+		return np.greater(z,0).astype(float)
+
+	def tanh_deriv(self,z):
+		return 1.0 - np.tanh(z)**2
 	
 
 	def initialise_weights(self):
-		self.w1 = 2*np.random.random((self.num_features, self.hidden_layer_dim)) - 1
-		self.w2 = 2*np.random.random((self.hidden_layer_dim, self.output_dim)) - 1
-		self.b1 = np.zeros((1, self.hidden_layer_dim), dtype=np.float128)
-		self.b2 = np.zeros((1, self.output_dim), dtype=np.float128)
+		weights = []
+		bias = []
+		w1 = 2*np.random.random((self.num_features, self.hidden_layer_dim)) - 1
+		w_last = 2*np.random.random((self.hidden_layer_dim, self.num_labels)) - 1
+		b1 = np.zeros((1, self.hidden_layer_dim))#, dtype=np.float128)
+		b_last = np.zeros((1, self.output_dim)) #, dtype=np.float128)
+		weights.append(w1)
+		bias.append(b1)
 
-	#implemented only for the sigmoid activation for now.
+		for i in range(0,self.num_hlayers-1):
+			w = 2*np.random.random((self.hidden_layer_dim, self.hidden_layer_dim)) - 1
+			b = np.zeros((1, self.hidden_layer_dim)) #, dtype=np.float128)
+			weights.append(w)
+			bias.append(b)
 
-	def learn(self, reg=None, cost_type='MSE'):
+		weights.append(w_last)
+		bias.append(b_last)
+
+		self.model_weights = weights
+		self.model_bias = (bias)
+
+		print "neural network initialised"
+
+	def learn_model(self):
 		print "learning weights..."
-		for i in xrange(0,self.num_passes):
-			self.z2 = self.train_images.dot(self.w1) + self.b1
-			self.a2 =  1/(1 + np.exp(-self.z2))	
-			#print self.current_output[1]
+		print "no of features are %s" % str(self.num_features)
+		#new_stuff
+		
 
-			self.z3 = self.a2.dot(self.w2) + self.b2
-			self.a3 = 1/(1 + np.exp(-self.z3))
-			#backprop
+		for i in range(0,self.num_passes):
+			Z = []
+			A = [self.train_images]
+			dbias = []
+			DJDW = []
+			k = -2
+			for j in range(0, self.num_hlayers+1):
+				z = A[-1].dot(self.model_weights[j]) + self.model_bias[j]
+				Z.append(z)
+				if self.activation == 'sigmoid':
+					a = 1/(1 + np.exp(-z))
+				elif self.activation == 'tanh':
+					a = np.tanh(z)
 
-			if cost_type=='MSE':
-
-				delta3 = np.multiply(-(self.train_label_vector-self.a3), self.sigmoidDerivative(self.z3))
-				db2 = np.sum(delta3, axis=0, keepdims=True)
-				dJdW2 = np.dot(self.a2.T, delta3)
-
-				delta2 = np.dot(delta3, self.w2.T)*self.sigmoidDerivative(self.z2)
-				db1 = np.sum(delta2, axis=0)
-				dJdW1 = np.dot(self.train_images.T, delta2)
+				A.append(a)
+			self.A = A
+			self.Z = Z
+			
 
 
+			print "Forward propagation compete, starting backprop"
+			if self.activation == 'sigmoid':
+				if self.cost_type=='MSE':
+					delta = np.multiply(-(self.train_label_vector-self.A[-1]), self.sigmoidDerivative(self.Z[-1]))
+				elif self.cost_type=='cross':
+					delta = -(self.train_label_vector-self.A[-1])
 
-			elif cost_type== 'cross' :
+				
+				db_last = np.sum(delta, axis=0, keepdims=True)
+				dbias.append(db_last)
+				dJdW = np.dot(self.A[k].T, delta)
+				DJDW.append(dJdW)
+				k -= 1
+				for j in range(0,self.num_hlayers):
+					
+					#dJdW2 = np.dot(self.a2.T, delta)
+					delta_b =  np.dot(delta, self.model_bias[k+2].T)*self.sigmoidDerivative(self.Z[k+1])
+					db = np.sum(delta_b, axis=0)
+					dbias.append(db)
+					delta = np.dot(delta, self.model_weights[k+2].T)*self.sigmoidDerivative(self.Z[k+1])
+					
+					dJdW = np.dot(self.A[k].T, delta)
+					DJDW.append(dJdW)
+					k -=1
+					print "one iteration done.."
 
-				delta3 = -(self.train_label_vector-self.a3)
+			elif self.activation == 'tanh':
+				if self.cost_type=='MSE':
+					delta = np.multiply(-(self.train_label_vector-A[-1]), self.tanh_deriv(self.Z[-1]))
+					db_last = np.sum(delta, axis=0, keepdims=True)
+					dbias.append(db_last)
+					dJdW = np.dot(self.A[k].T, delta)
+					DJDW.append(dJdW)
+					k -= 1
+					for j in range(0,self.num_hlayers):
+					
+						#dJdW2 = np.dot(self.a2.T, delta)
+						delta_b =  np.dot(delta, self.model_bias[k+2].T)*self.tanh_deriv(self.Z[k+1])
+						db = np.sum(delta_b, axis=0)
+						dbias.append(db)
+						delta = np.dot(delta, self.model_weights[k+2].T)*self.tanh_deriv(self.Z[k+1])
+						
+						dJdW = np.dot(self.A[k].T, delta)
+						DJDW.append(dJdW)
+						k -=1
+						print "one iteration done.."
 
-				delta2 = np.dot(delta3, self.w2.T)*self.sigmoidDerivative(self.z2)
-				db2 = np.sum(delta3, axis=0, keepdims=True)
-				dJdW1 = np.dot(self.train_images.T, delta2)
+
+				elif self.cost_type=='cross':
+					print "tanh not to be used with cross-entropy.."
+
+				
+
+			db = np.array(dbias)
+			db =db[::-1]
+			DJDW_v = np.array(DJDW)
+			DJDW_v = DJDW_v[::-1]
 			
 
 			#do L2 regularisation.
-			if reg=='L2':
+			if self.reg_type=='L2':
 				print"L2 regularisation is set to true.."
-				dJdW2 += self.reg_lambda * self.w2
-				dJdW1 += self.reg_lambda * self.w1
-	 		if reg=='L1':
+				for t in range(0,len(self.model_weights)):
+					DJDW_v[t] += self.reg_lambda * self.model_weights[t]
+				
+	 		if self.reg_type =='L1':
 	 			print"L1 regularisation is set to true..."
-	 			dJdW2 += self.reg_lambda * np.sign(self.w2)
-				dJdW1 += self.reg_lambda * np.sign(self.w1)
+	 			for u in range(0, len(self.model_weights)):
+	 				DJDW_v[u] += self.reg_lambda * np.sign(self.model_weights[u])
+				
 	        
-
-			self.w1 += -self.epsilon * dJdW1
-			self.b1 += -self.epsilon * db1
-			self.w2 += -self.epsilon * dJdW2
-			self.b2 += -self.epsilon * db2
-			cost = self.computeCost(cost_type,reg)
-			print "cost is after iteration: %s" % str(i)
-			print cost
-			plt.scatter(i,cost)
+			for k in range(0, len(self.model_weights)):
+				self.model_weights[k] += -self.epsilon * DJDW_v[k]
+				self.model_bias[k] += -self.epsilon * db[k]
+			self.predict()
+			train_cost, test_cost = self.computeCost()
+			print "training cost after iteration: %s" % str(i+1)
+			print train_cost
+			print "test cost after iteration: %s" % str(i+1)
+			print test_cost
+			plt.scatter(i,train_cost)
+			plt.scatter(i, test_cost)
 		plt.show()
 
 	def vectorise_output(self):
-     		self.train_label_vector = np.zeros((len(self.train_labels), 3), dtype=np.float128)
-     		self.test_label_vector = np.zeros((len(self.test_labels), 3), dtype=np.float128)
+     		self.train_label_vector = np.zeros((len(self.train_labels), self.output_dim), dtype=np.float128)
+     		self.test_label_vector = np.zeros((len(self.test_labels), self.output_dim), dtype=np.float128)
+     		label_indices_list_train = []
+     		label_indices_list_test = []
 
-     		label1 = [index for index,value in enumerate(self.train_labels) if value in [1]]
-     		label2 = [index for index,value in enumerate(self.train_labels) if value in [2]]
-     		label3 = [index for index,value in enumerate(self.train_labels) if value in [3]]
-     		for x in label1:
-				self.train_label_vector[x, :] = [1.0, 0.0, 0.0]
-     		for y in label2:
-				self.train_label_vector[y, :] = [0.0, 1.0, 0.0]
-     		
-     		for z in label3:
-				self.train_label_vector[z, :] = [0.0, 0.0, 1.0]
-		print "dimension of train label vector is..."
-		print self.train_label_vector.shape[0], self.train_label_vector.shape[1]
+     		for i in range(0,self.num_labels):
+     			label_indices_list_train.append([index for index,value in enumerate(self.train_labels) if value in [self.class_var[i]]])
+     		for j in range(0,self.num_labels):
+     			label_indices_list_test.append([index for index,value in enumerate(self.test_labels) if value in [self.class_var[i]]])
 
-		label1_test = [index for index,value in enumerate(self.test_labels) if value in [1]]
-     		label2_test = [index for index,value in enumerate(self.test_labels) if value in [2]]
-     		label3_test = [index for index,value in enumerate(self.test_labels) if value in [3]]
-     		for x in label1_test:
-				self.test_label_vector[x, :] = [1.0, 0.0, 0.0]
-     		for y in label2_test:
-				self.test_label_vector[y, :] = [0.0, 1.0, 0.0]
-     		
-     		for z in label3_test:
-				self.test_label_vector[z, :] = [0.0, 0.0, 1.0]
+     		for k in range(0,self.num_labels):
+     			for t in label_indices_list_train[k]:
+     				temp = np.zeros(self.num_labels)
+     				temp[k] = 1.0
+     				self.train_label_vector[t, :] = temp
+			for l in range(0,self.num_labels):
+				for u in label_indices_list_test[l]:
+					temp = np.zeros(self.num_labels)
+					temp[l] = 1.0
+					self.test_label_vector[u, :] = temp
+
+			print "output vectors created for training..."
+
+
 		
-     		
-     		print "output vectors created for training..."
-
 	def predict(self):
-	        print "Predicting test data..."
-	        #print "dimension of test image is..."
-	        #print self.test_images.shape[0], self.test_images.shape[1]
-	        z2 = self.test_images.dot(self.w1) + self.b1
-	        a2 =  1/(1 + np.exp(-z2))	
-	        z3 = a2.dot(self.w2) + self.b2
-	        a3 = 1/(1 + np.exp(-z3))
-	        self.predicted_outputs = a3
-	        #print "dimension of the predicted outputs are.."
-	        #print self.predicted_outputs.shape[0], self.predicted_outputs.shape[1]
-	        labels = np.argmax(self.predicted_outputs, axis=1)
-	        self.predicted_output_labels = 1 + labels
-	        #print self.predicted_output_labels
-	       
-	        #text_file2 = open("Output2.txt", "w")
-	        #text_file2.write("outputs are: %s" % str(self.predicted_output_labels))
-	        #text_file2.close()
-	        '''
-	        for i in range(0,300):
-	        	text_file2.write(str(self.predicted_output_labels[i]))
-	        text_file2.close()
-	        '''
-	        print "predicting done..."
+		print "Predicting test data..."
+		Z = []
+		A = [self.test_images]
+		for j in range(0, self.num_hlayers+1):
+			z = A[-1].dot(self.model_weights[j]) + self.model_bias[j]
+			Z.append(z)
+			if self.activation == 'sigmoid':
+				a = 1/(1 + np.exp(-z))
+			elif self.activation == 'tanh':
+				a = np.tanh(z)
+			A.append(a)
+		self.predicted_outputs = np.array(A[-1])
+		labels = np.argmax(self.predicted_outputs, axis=1)
+		self.predicted_labels = 1 + labels
+		#print self.predicted_output_labels
+		print "predicting done...."
 
 
-	#function for calculating MSE Loss.
-	#def calculate_loss(self):
+	#returns cost associated with training and test data, given the current model.
+	def computeCost(self):
+		if self.cost_type=='MSE':
+			print "calculating MSE Loss"
 
-	def computeCost(self, cost_type='MSE', reg=None):
-		if cost_type=='MSE':
-			# print "cost is divided by"
-			#print self.train_label_vector.shape[0]
-			J = (sum(sum((self.train_label_vector - self.a3)**2)))/self.train_label_vector.shape[0]
+			J_train = (sum(sum((self.train_label_vector - self.A[-1])**2)))/(self.num_train_example)
+			J_test = (sum(sum((self.test_label_vector - self.predicted_outputs)**2)))/(self.num_test_example)
+
+		elif self.cost_type=='cross':
+			print "calculating cross-entropy loss.."
+
+			J_train = -sum(sum(self.train_label_vector*np.log(self.A[-1]) + (1-self.train_label_vector)*np.log(1-self.A[-1])))/(2*self.num_train_example)
+			J_test = -sum(sum(self.test_label_vector*np.log(self.predicted_outputs) + (1-self.test_label_vector)*np.log(1-self.predicted_outputs)))/(2*self.num_test_example)
+
 			
 
-			if reg == None:
-				return J
-			elif reg == 'L2':
-				J += self.reg_lambda*()/(2*self.train_label_vector.shape[0]) + self.reg_lambda*()/(2*self.train_label_vector.shape[0])
-
-			elif reg== 'L1':
-				J += self.reg_lambda*()/(2*self.train_label_vector.shape[0]) + self.reg_lambda*()/(2*self.train_label_vector.shape[0])
-
-
-		elif cost_type=='cross':
-			print "hi"
+		if self.reg_type == None:
+			return J_train, J_test
+		elif self.reg_type == 'L2':
+			for i in range(0, len(self.model_weights)):
+				print "cost using L2"
+				J_train += self.reg_lambda*(sum(sum(self.model_weights[i]**2)))/(2*self.num_train_example) 
+				J_test += self.reg_lambda*(sum(sum(self.model_weights[i]**2)))/(2*self.num_test_example)
+				return J_train, J_test
+		elif self.reg_type== 'L1':
+			print "cost using L1"
+			for i in range(0, len(self.model_weights)):
+				J_train += self.reg_lambda*(sum(sum(abs(self.model_weights[i]))))/(2*self.num_train_example) 
+				J_test += self.reg_lambda*(sum(sum(abs(self.model_weights[i]))))/(2*self.num_test_example) 
+				return J_train, J_test
+		
 
 	def calculate_accuracy(self):
 		print "calculating accuracy"
-		#print self.predicted_output_labels.shape[0]
-		#print self.test_labels.shape[0]
-		num_correct = np.count_nonzero(self.predicted_output_labels==self.test_labels)
+		print self.predicted_labels.shape
+		num_correct = np.count_nonzero(self.predicted_labels==self.test_labels)
 		print num_correct
-		print self.num_train_example
-		#print float(num_correct)/float(self.test_labels.shape[0])
+		print self.test_labels.shape
 		accuracy = (float(num_correct)/float(self.num_test_example))*100
 		print "accuracy is: %s" % str(accuracy)
 
 
-
-
-
 if __name__ == '__main__':
-	back_prop = VanillaBackProp()
+	back_prop = VanillaBackProp(layers=1, h_dim=40, epoc=10, reg_lambda=0.002, learn_rate=0.0002, activation='tanh', cost_type='MSE', reg_type='L1')
 	back_prop.read()
 	back_prop.initialise_weights()
-	back_prop.learn()
+	back_prop.learn_model()
 	back_prop.predict()
 	back_prop.calculate_accuracy()
 	

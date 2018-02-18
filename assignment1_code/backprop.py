@@ -5,7 +5,6 @@ script for doing backprop with different activation functions on mnist dataset.
 
 dependencies: pip install python-mnist
 
-Implementation of a single layered neural network.
 
 Authors: Siddharth Agrawal, Vikas Deep, Harsh Sahu
 
@@ -191,7 +190,10 @@ class VanillaBackProp(object):
 				if self.activation == 'sigmoid':
 					a = 1/(1 + np.exp(-z))
 				elif self.activation == 'tanh':
-					a = np.tanh(z)
+					if j!=self.num_hlayers:
+						a = np.tanh(z)
+					else:
+						a= 1/(1 + np.exp(-z))
 				if j!=0 and j!= self.num_hlayers:
 					if self.dropout==True:
 						
@@ -233,7 +235,7 @@ class VanillaBackProp(object):
 
 			elif self.activation == 'tanh':
 				if self.cost_type=='MSE':
-					delta = np.multiply(-(self.train_label_vector-A[-1]), self.tanh_deriv(self.Z[-1]))
+					delta = np.multiply(-(self.train_label_vector-A[-1]), self.sigmoidDerivative(self.Z[-1]))
 					db_last = np.sum(delta, axis=0, keepdims=True)
 					dbias.append(db_last)
 					dJdW = np.dot(self.A[k].T, delta)
@@ -388,7 +390,7 @@ class VanillaBackProp(object):
 		return train_error_data, test_error_data, accuracy_data
 
 if __name__ == '__main__':
-	back_prop = VanillaBackProp(1, 40, 10, 0.002, 0.0002,'sigmoid', 'MSE', 'L2', False)
+	back_prop = VanillaBackProp(1, 40, 10, 0.002, 0.0002,'tanh', 'MSE', None, True)
 	back_prop.read()
 	back_prop.initialise_weights()
 	back_prop.learn_model()
@@ -396,6 +398,5 @@ if __name__ == '__main__':
 	print train_error
 	print test_error
 	print accuracy
-	#back_prop.predict()
-	#back_prop.calculate_accuracy()
+
 	

@@ -26,7 +26,7 @@ import os
 
 
 class VanillaBackProp(object):
-	def __init__(self, layers=2, h_dim=50, epoc=10, reg_lambda=0.001, learn_rate=0.0001, activation='sigmoid', cost_type='MSE', reg_type=None ):
+	def __init__(self, layers=2, h_dim=50, epoc=10, reg_lambda=0.001, learn_rate=0.0001, activation='sigmoid', cost_type='MSE', reg_type=None, dropout=False ):
 		print "initialising class variables.."
 		self.data_path = os.path.join(os.path.dirname(__file__), 'data')
 		self.train_images = None 
@@ -64,6 +64,11 @@ class VanillaBackProp(object):
 
 		self.predicted_outputs = None
 		self.predicted_labels = None
+		self.dropout = dropout
+
+		self.train_error_data = []
+		self.test_error_data = []
+		self.accuracy_data = []
 		print "class variables initialised.."
 
 
@@ -173,13 +178,26 @@ class VanillaBackProp(object):
 			dbias = []
 			DJDW = []
 			k = -2
+			dropout_u = []
+			if self.dropout == True:
+				for x in range(0, self.num_hlayers):
+					u = np.random.binomial(1, 0.5, (self.num_train_example ,self.hidden_layer_dim)) / 0.5
+					dropout_u.append(u)
+
 			for j in range(0, self.num_hlayers+1):
 				z = A[-1].dot(self.model_weights[j]) + self.model_bias[j]
+
 				Z.append(z)
 				if self.activation == 'sigmoid':
 					a = 1/(1 + np.exp(-z))
 				elif self.activation == 'tanh':
 					a = np.tanh(z)
+				if j!=0 and j!= self.num_hlayers:
+					if self.dropout==True:
+						
+						a *= dropout_u[j-1]
+						
+
 
 				A.append(a)
 			self.A = A
@@ -262,13 +280,17 @@ class VanillaBackProp(object):
 				self.model_weights[k] += -self.epsilon * DJDW_v[k]
 				self.model_bias[k] += -self.epsilon * db[k]
 			self.predict()
+			accuracy = self.calculate_accuracy()
 			train_cost, test_cost = self.computeCost()
 			print "training cost after iteration: %s" % str(i+1)
 			print train_cost
 			print "test cost after iteration: %s" % str(i+1)
 			print test_cost
-			plt.scatter(i,train_cost)
-			plt.scatter(i, test_cost)
+			plt.scatter((i+1),train_cost)
+			self.train_error_data.append(((i+1),train_cost))
+			plt.scatter((i+1), test_cost)
+			self.test_error_data.append(((i+1),test_cost))
+			self.accuracy_data.append(((i+1),accuracy))
 		plt.show()
 
 	def vectorise_output(self):
@@ -356,13 +378,24 @@ class VanillaBackProp(object):
 		print self.test_labels.shape
 		accuracy = (float(num_correct)/float(self.num_test_example))*100
 		print "accuracy is: %s" % str(accuracy)
+		return accuracy
 
+	def getData(self):
+		test_error_data = np.array(self.test_error_data)
+		train_error_data = np.array(self.train_error_data)
+		accuracy_data = np.array(self.accuracy_data)
+		print "numpy arrays created from raw data..."
+		return train_error_data, test_error_data, accuracy_data
 
 if __name__ == '__main__':
-	back_prop = VanillaBackProp(layers=1, h_dim=40, epoc=10, reg_lambda=0.002, learn_rate=0.0002, activation='tanh', cost_type='MSE', reg_type='L1')
+	back_prop = VanillaBackProp(1, 40, 10, 0.002, 0.0002,'sigmoid', 'MSE', 'L2', False)
 	back_prop.read()
 	back_prop.initialise_weights()
 	back_prop.learn_model()
-	back_prop.predict()
-	back_prop.calculate_accuracy()
+	train_error, test_error, accuracy = back_prop.getData()
+	print train_error
+	print test_error
+	print accuracy
+	#back_prop.predict()
+	#back_prop.calculate_accuracy()
 	

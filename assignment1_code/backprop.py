@@ -9,7 +9,6 @@ dependencies: pip install python-mnist
 Authors: Siddharth Agrawal, Vikas Deep, Harsh Sahu
 
 learning rate required with cross-entropy almost one-tenth of that with MSE.
-Also, with relu learning rate required is very very small.
 
 '''
 
@@ -21,6 +20,8 @@ import matplotlib.patches as mpatches
 import time
 import os
 from Reader import Reader
+from pylab import figure, axes, pie, title, show
+
 
 
 
@@ -317,11 +318,11 @@ if __name__ == '__main__':
 	
 	for w in range(0,3):
 		if w ==0:
-			back_prop = VanillaBackProp(1, 40, 5, 0.002, 0.0002,'tanh', 'MSE', None, True, reader)
+			back_prop = VanillaBackProp(1, 40, 2, 0.002, 0.0002,'tanh', 'MSE', None, True, reader)
 		elif w==1:
-			back_prop = VanillaBackProp(1, 40, 5, 0.002, 0.0002,'sigmoid', 'MSE', None, True, reader)
+			back_prop = VanillaBackProp(1, 40, 2, 0.002, 0.0002,'sigmoid', 'MSE', None, True, reader)
 		else:
-			back_prop = VanillaBackProp(1, 40, 5, 0.002, 0.0002,'sigmoid', 'cross', None, True, reader)
+			back_prop = VanillaBackProp(1, 40, 2, 0.002, 0.0002,'sigmoid', 'cross', None, False, reader)
 
 
 
@@ -346,7 +347,9 @@ if __name__ == '__main__':
 			plt.title('cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim)+' dropout')
 		else:
 			plt.title('cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim))
-		plt.show()
+		plt.savefig('/Users/siddharthagrawal/Desktop/Plots/image'+str(w)+'.png')
+		plt.close()
+		#plt.show()
 
 
 

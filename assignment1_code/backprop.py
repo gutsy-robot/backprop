@@ -17,41 +17,43 @@ from mnist import MNIST
 import random
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.patches as mpatches
 import time
 import os
+from Reader import Reader
 
 
 
 
 
 class VanillaBackProp(object):
-	def __init__(self, layers=2, h_dim=50, epoc=10, reg_lambda=0.001, learn_rate=0.0001, activation='sigmoid', cost_type='MSE', reg_type=None, dropout=False ):
+	def __init__(self, layers=2, h_dim=50, epoc=10, reg_lambda=0.001, learn_rate=0.0001, activation='sigmoid', cost_type='MSE', reg_type=None, dropout=False, reader=None ):
 		print "initialising class variables.."
-		self.data_path = os.path.join(os.path.dirname(__file__), 'data')
-		self.train_images = None 
-		self.test_images = None 
-		self.train_labels = None
-		self.test_labels = None 
-		self.class_var = [1.0,2.0,3.0]										#we will classify into the nine-letter classes
-		self.num_features = None
+		self.data_path = os.path.join(os.path.dirname(__file__), 'data/data')
+		self.train_images = reader.train_images
+		self.test_images = reader.test_images
+		self.train_labels = reader.train_labels
+		self.test_labels = reader.test_labels 
+		self.class_var = reader.class_var										#we will classify into the nine-letter classes
+		self.num_features = reader.num_features
 		self.hidden_layer_dim = h_dim
 		self.num_hlayers = layers
 		
-		self.num_train_example = None
-		self.num_test_example  = None
+		self.num_train_example = reader.num_train_example
+		self.num_test_example  = reader.num_test_example
 
 		self.class_var_codes = {'A':65, 'D':68, 'H':72, 'I':73, 'K':75, 'R':82, 'S':83, 'T':84, 'V':86}
 		#self.class_var = [5.0, 8.0, 2.0, 3.0, 15.0, 32.0, 33.0, 28.0, 12.0 ]
 		#self.class_output_map = {'A':1, 'D':2, 'H':3, 'I':4 'K':5, 'R':6, 'S':7, 'T':8, 'V':9}
-		self.output_dim = len(self.class_var)
-		self.train_label_vector = None
-		self.test_label_vector = None
+		self.output_dim = len(reader.class_var)
+		self.train_label_vector = reader.train_label_vector
+		self.test_label_vector = reader.test_label_vector
 		self.A = None
 		self.Z = None
 		self.model_weights = None
 		self.model_bias = None
 
-		self.num_labels = len(self.class_var)
+		self.num_labels = len(reader.class_var)
 		self.reg_lambda = reg_lambda
 		self.epsilon = learn_rate
 
@@ -70,66 +72,6 @@ class VanillaBackProp(object):
 		self.accuracy_data = []
 		print "class variables initialised.."
 
-
-
-
-
-
-	def read(self):
-		mndata = MNIST(self.data_path)
-
-		print "reading data.."
-		training_images, training_labels = mndata.load_training()
-		print "training ubyte files read..."
-		testing_images, testing_labels = mndata.load_testing()
-		print "data read successfully from ubyte files"
-		train_images = np.array(training_images, dtype=np.float128)
-		print "training images numpy array created..."
-		train_labels = np.array(training_labels, dtype=np.float128)
-		print "train_labels numpy array created..."
-		test_images = np.array(testing_images, dtype=np.float128)
-		print "test_images numpy array created..."
-		test_labels = np.array(testing_labels, dtype=np.float128)
-		print "test_labels numpy array created..."
-
-		#just to visualise the training data.
-		
-		print "conversion to numpy array done..."
-		print "images dimensions are.."
-		print train_images.shape, test_images.shape
-		print "label dimensions are.."
-		print train_labels.shape, test_labels.shape
-		
-		'''
-		first_image = training_images[0]
-		first_image = np.array(first_image, dtype='float')
-		pixels = first_image.reshape((28, 28))
-		plt.imshow(pixels, cmap='gray')
-		plt.show()
-		'''
-		
-
-		#filter out training variables 
-		self.train_labels = np.array(filter(lambda x: x in self.class_var, train_labels))
-		print "shape of train_labels is %s" % self.train_labels.shape
-		self.num_train_example = self.train_labels.shape[0]
-
-		self.test_labels =  np.array(filter(lambda x: x in self.class_var, test_labels))
-		self.num_test_example = self.test_labels.shape[0]
-
-		train_indices = [index for index,value in enumerate(train_labels) if value in self.class_var]
-		train_images_temp = train_images[train_indices,:]
-		self.train_images = train_images_temp/256.0
-
-		test_indices = [index for index,value in enumerate(test_labels) if value in self.class_var]
-		test_images_temp = test_images[test_indices,:]
-		self.test_images = test_images_temp/256.0
-		self.num_features = self.train_images.shape[1]	
-		print "calling vectorise output now..."
-		self.vectorise_output()
-		print "number of features are %s" % str(self.num_features)
-		print "number of training examples are %s" % str(self.num_train_example)
-		print "number of test examples are %s" % str(self.num_test_example)
 		
 	def sigmoidDerivative(self,z):
 		return np.exp(-z)/((1+np.exp(-z))**2)
@@ -163,7 +105,7 @@ class VanillaBackProp(object):
 		self.model_weights = weights
 		self.model_bias = (bias)
 
-		print "neural network initialised"
+		
 
 	def learn_model(self):
 		print "learning weights..."
@@ -231,7 +173,7 @@ class VanillaBackProp(object):
 					dJdW = np.dot(self.A[k].T, delta)
 					DJDW.append(dJdW)
 					k -=1
-					print "one iteration done.."
+					#print "one iteration done.."
 
 			elif self.activation == 'tanh':
 				if self.cost_type=='MSE':
@@ -252,7 +194,7 @@ class VanillaBackProp(object):
 						dJdW = np.dot(self.A[k].T, delta)
 						DJDW.append(dJdW)
 						k -=1
-						print "one iteration done.."
+						#print "one iteration done.."
 
 
 				elif self.cost_type=='cross':
@@ -288,36 +230,12 @@ class VanillaBackProp(object):
 			print train_cost
 			print "test cost after iteration: %s" % str(i+1)
 			print test_cost
-			plt.scatter((i+1),train_cost)
+			#plt.scatter((i+1),train_cost)
 			self.train_error_data.append(((i+1),train_cost))
-			plt.scatter((i+1), test_cost)
+			#plt.scatter((i+1), test_cost)
 			self.test_error_data.append(((i+1),test_cost))
 			self.accuracy_data.append(((i+1),accuracy))
-		plt.show()
-
-	def vectorise_output(self):
-     		self.train_label_vector = np.zeros((len(self.train_labels), self.output_dim), dtype=np.float128)
-     		self.test_label_vector = np.zeros((len(self.test_labels), self.output_dim), dtype=np.float128)
-     		label_indices_list_train = []
-     		label_indices_list_test = []
-
-     		for i in range(0,self.num_labels):
-     			label_indices_list_train.append([index for index,value in enumerate(self.train_labels) if value in [self.class_var[i]]])
-     		for j in range(0,self.num_labels):
-     			label_indices_list_test.append([index for index,value in enumerate(self.test_labels) if value in [self.class_var[i]]])
-
-     		for k in range(0,self.num_labels):
-     			for t in label_indices_list_train[k]:
-     				temp = np.zeros(self.num_labels)
-     				temp[k] = 1.0
-     				self.train_label_vector[t, :] = temp
-			for l in range(0,self.num_labels):
-				for u in label_indices_list_test[l]:
-					temp = np.zeros(self.num_labels)
-					temp[l] = 1.0
-					self.test_label_vector[u, :] = temp
-
-			print "output vectors created for training..."
+		#plt.show()
 
 
 		
@@ -335,8 +253,10 @@ class VanillaBackProp(object):
 			A.append(a)
 		self.predicted_outputs = np.array(A[-1])
 		labels = np.argmax(self.predicted_outputs, axis=1)
-		self.predicted_labels = 1 + labels
-		#print self.predicted_output_labels
+		print "labels are %s" % str(labels.shape)
+		self.predicted_labels = self.class_var[labels]
+		print "predicted_labels are..."
+		print self.predicted_labels
 		print "predicting done...."
 
 
@@ -377,7 +297,7 @@ class VanillaBackProp(object):
 		print self.predicted_labels.shape
 		num_correct = np.count_nonzero(self.predicted_labels==self.test_labels)
 		print num_correct
-		print self.test_labels.shape
+		print self.test_labels
 		accuracy = (float(num_correct)/float(self.num_test_example))*100
 		print "accuracy is: %s" % str(accuracy)
 		return accuracy
@@ -389,14 +309,46 @@ class VanillaBackProp(object):
 		print "numpy arrays created from raw data..."
 		return train_error_data, test_error_data, accuracy_data
 
+
 if __name__ == '__main__':
-	back_prop = VanillaBackProp(1, 40, 10, 0.002, 0.0002,'tanh', 'MSE', None, True)
-	back_prop.read()
-	back_prop.initialise_weights()
-	back_prop.learn_model()
-	train_error, test_error, accuracy = back_prop.getData()
-	print train_error
-	print test_error
-	print accuracy
+	reader = Reader()
+	reader.read()
+
+	
+	for w in range(0,3):
+		if w ==0:
+			back_prop = VanillaBackProp(1, 40, 5, 0.002, 0.0002,'tanh', 'MSE', None, True, reader)
+		elif w==1:
+			back_prop = VanillaBackProp(1, 40, 5, 0.002, 0.0002,'sigmoid', 'MSE', None, True, reader)
+		else:
+			back_prop = VanillaBackProp(1, 40, 5, 0.002, 0.0002,'sigmoid', 'cross', None, True, reader)
+
+
+
+		back_prop.initialise_weights()
+		back_prop.learn_model()
+		train_error, test_error, accuracy = back_prop.getData()
+		print "shape of train_error with iteration numpy array..."
+		print train_error.shape
+		iterations = train_error[:,0]
+		train_error = train_error[:,1]
+		test_error = test_error[:,1]
+		plt.scatter(iterations, train_error, color='red')
+		plt.plot(iterations, train_error, color='red' )
+		plt.scatter(iterations, test_error, color='blue')
+		plt.plot(iterations, test_error, color='blue')
+		training_error = mpatches.Patch(color='red', label='Training Error')
+		testing_error = mpatches.Patch(color='blue', label='Test Error')
+		plt.legend(handles=[training_error, testing_error])
+		plt.xlabel('Epochs')
+		plt.ylabel('Error')
+		if back_prop.dropout:
+			plt.title('cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim)+' dropout')
+		else:
+			plt.title('cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim))
+		plt.show()
+
+
+
 
 	

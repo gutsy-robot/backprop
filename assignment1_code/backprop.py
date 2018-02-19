@@ -31,6 +31,7 @@ class VanillaBackProp(object):
 	def __init__(self, layers=2, h_dim=50, epoc=10, reg_lambda=0.001, learn_rate=0.0001, activation='sigmoid', cost_type='MSE', reg_type=None, dropout=False, reader=None ):
 		print "initialising class variables.."
 		self.data_path = os.path.join(os.path.dirname(__file__), 'data/data')
+		self.fig_path = os.path.join(os.path.dirname(__file__), 'plots')
 		self.train_images = reader.train_images
 		self.test_images = reader.test_images
 		self.train_labels = reader.train_labels
@@ -316,14 +317,58 @@ if __name__ == '__main__':
 	reader.read()
 
 	
-	for w in range(0,3):
+	for w in range(0,1):
 		if w ==0:
-			back_prop = VanillaBackProp(1, 40, 2, 0.002, 0.0002,'tanh', 'MSE', None, True, reader)
+			back_prop = VanillaBackProp(1, 50, 10, 0.0001, 0.0002,'sigmoid', 'MSE', 'L1', False, reader)
 		elif w==1:
-			back_prop = VanillaBackProp(1, 40, 2, 0.002, 0.0002,'sigmoid', 'MSE', None, True, reader)
-		else:
-			back_prop = VanillaBackProp(1, 40, 2, 0.002, 0.0002,'sigmoid', 'cross', None, False, reader)
+			back_prop = VanillaBackProp(2, 50, 10, 0.0001, 0.0002,'sigmoid', 'MSE', 'L1', False, reader)
+		elif w==2:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'sigmoid', 'MSE', 'L2', False, reader)
+		elif w==3:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'sigmoid', 'MSE', 'L2', False, reader)
+		elif w==4:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'sigmoid', 'MSE', None, True, reader)
+		elif w==5:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'sigmoid', 'MSE', None, True, reader)		
+		elif w==6:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'sigmoid', 'MSE', None, False, reader)
+		elif w==7:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'sigmoid', 'MSE', None, False, reader)
 
+		if w ==8:
+			back_prop = VanillaBackProp(1, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', 'L1', False, reader)
+		elif w==9:
+			back_prop = VanillaBackProp(2, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', 'L1', False, reader)
+		elif w==10:
+			back_prop = VanillaBackProp(1, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', 'L2', False, reader)
+		elif w==11:
+			back_prop = VanillaBackProp(2, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', 'L2', False, reader)
+		elif w==12:
+			back_prop = VanillaBackProp(1, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', None, True, reader)
+		elif w==13:
+			back_prop = VanillaBackProp(2, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', None, True, reader)		
+		elif w==14:
+			back_prop = VanillaBackProp(1, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', None, False, reader)
+		elif w==15:
+			back_prop = VanillaBackProp(2, 50, 50, 0.00001, 0.0002,'sigmoid', 'cross', None, False, reader)
+
+		if w ==16:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', 'L1', False, reader)
+		elif w==17:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', 'L1', False, reader)
+		elif w==18:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', 'L2', False, reader)
+		elif w==19:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', 'L2', False, reader)
+		elif w==20:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', None, True, reader)
+		elif w==21:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', None, True, reader)		
+		elif w==22:
+			back_prop = VanillaBackProp(1, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', None, False, reader)
+		elif w==23:
+			back_prop = VanillaBackProp(2, 50, 50, 0.0001, 0.0002,'tanh', 'MSE', None, False, reader)		
+				
 
 
 		back_prop.initialise_weights()
@@ -344,10 +389,10 @@ if __name__ == '__main__':
 		plt.xlabel('Epochs')
 		plt.ylabel('Error')
 		if back_prop.dropout:
-			plt.title('cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim)+' dropout')
+			plt.title('acc: '+str(int(back_prop.accuracy_data[-1][1]))+' cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim)+' dropout')
 		else:
-			plt.title('cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim))
-		plt.savefig('/Users/siddharthagrawal/Desktop/Plots/image'+str(w)+'.png')
+			plt.title('acc: '+str(int(back_prop.accuracy_data[-1][1]))+ 'cost: '+str(back_prop.cost_type)+' activation: '+str(back_prop.activation)+' Reg: '+str(back_prop.reg_type)+' layers: '+str(back_prop.num_hlayers)+' h_dim: '+str(back_prop.hidden_layer_dim))
+		plt.savefig(str(back_prop.fig_path)+'/image'+str(w)+'.png')
 		plt.close()
 		#plt.show()
 
